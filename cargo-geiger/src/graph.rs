@@ -2,11 +2,13 @@ use cargo::core::dependency::DepKind;
 use cargo::core::package::PackageSet;
 use cargo::core::{Dependency, PackageId, Resolve};
 use cargo::util::CargoResult;
+use cargo_metadata::Metadata;
 use cargo_platform::Cfg;
 use petgraph::graph::NodeIndex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub enum ExtraDeps {
     All,
     Build,
@@ -32,12 +34,21 @@ pub struct Graph {
     pub nodes: HashMap<PackageId, NodeIndex>,
 }
 
+pub struct GraphCargoMetadata {
+    pub graph: petgraph::Graph<NodeCargoMetadata, DepKind>,
+    pub nodes: HashMap<cargo_metadata::PackageId, NodeIndex>,
+}
+
 /// Representation of a node within the package dependency graph
 pub struct Node {
     pub id: PackageId,
     // TODO: Investigate why this was needed before the separation of printing
     // and graph traversal and if it should be added back.
     //pack: &'a Package,
+}
+
+pub struct NodeCargoMetadata {
+    pub id: cargo_metadata::PackageId,
 }
 
 // Almost unmodified compared to the original in cargo-tree, should be fairly
@@ -79,6 +90,48 @@ pub fn build_graph<'a>(
             &mut pending,
         )?;
     }
+
+    Ok(graph)
+}
+
+pub fn build_graph_cargo_metadata(
+    cfgs: Option<&[Cfg]>,
+    extra_deps: ExtraDeps,
+    metadata: &Metadata,
+    target: Option<&str>,
+) -> CargoResult<GraphCargoMetadata> {
+    let mut graph = GraphCargoMetadata {
+        graph: petgraph::Graph::new(),
+        nodes: HashMap:: new(),
+    };
+
+    let resolve = metadata
+        .resolve
+        .unwrap();
+
+    let test = resolve.root.unwrap();
+
+    let root = metadata
+        .resolve
+        .as_ref()
+        .unwrap()
+        .root
+        .as_ref()
+        .unwrap();
+
+    let node = NodeCargoMetadata {
+        id: root.clone(),
+    };
+
+    graph.nodes.insert(test, graph.graph.add_node(node));
+
+    let mut _pending = vec![root];
+
+    let _graph_configuration = GraphConfiguration {
+        target,
+        cfgs,
+        extra_deps
+    };
 
     Ok(graph)
 }

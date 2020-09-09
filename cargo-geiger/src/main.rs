@@ -18,15 +18,14 @@ mod rs_file;
 mod scan;
 mod traversal;
 
-use crate::cli::{get_cfgs, get_registry, get_workspace, resolve};
+use crate::cli::{get_cargo_metadata, get_cfgs, get_registry, get_workspace, resolve};
 use crate::format::print::{Prefix, PrintConfig};
 use crate::format::{Charset, Pattern};
-use crate::graph::{build_graph, ExtraDeps};
+use crate::graph::{build_graph, ExtraDeps, build_graph_cargo_metadata};
 use crate::scan::{run_scan_mode_default, run_scan_mode_forbid_only};
 
 use cargo::core::shell::{ColorChoice, Shell, Verbosity};
-use cargo::util::errors::CliError;
-use cargo::{CliResult, Config};
+use cargo::{CliError, CliResult, Config};
 use geiger::IncludeTests;
 use petgraph::EdgeDirection;
 use std::fmt;
@@ -209,6 +208,8 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
         ColorChoice::CargoAuto => {}
     }
 
+    let cargo_metadata = get_cargo_metadata(&args.manifest_path.clone())?;
+
     let ws = get_workspace(config, args.manifest_path.clone())?;
     let package = ws.current()?;
     let mut registry = get_registry(config, &package)?;
@@ -270,8 +271,15 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
         package.package_id(),
         target,
         cfgs.as_deref(),
-        extra_deps,
+        extra_deps.clone(),
     )?;
+
+    let _cargo_metadata_graph = build_graph_cargo_metadata(
+        cfgs.as_deref(),
+        extra_deps,
+        &cargo_metadata,
+        target,
+    );
 
     let direction = if args.invert {
         EdgeDirection::Incoming

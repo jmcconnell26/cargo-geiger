@@ -15,12 +15,29 @@ use cargo::core::package::PackageSet;
 use cargo::core::registry::PackageRegistry;
 use cargo::core::resolver::ResolveOpts;
 use cargo::core::{Package, PackageId, PackageIdSpec, Resolve, Workspace};
+use cargo_metadata::{Metadata, MetadataCommand, CargoOpt};
 use cargo::ops;
 use cargo::util::{self, important_paths, CargoResult};
 use cargo::Config;
 use cargo_platform::Cfg;
 use std::path::PathBuf;
 use std::str::{self, FromStr};
+
+pub fn get_cargo_metadata(
+    manifest_path: &Option<PathBuf>,
+) -> CargoResult<Metadata> {
+    let manifest_path_str = manifest_path
+        .as_ref()
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap();
+
+    Ok(MetadataCommand::new()
+        .manifest_path(manifest_path_str)
+        .features(CargoOpt::AllFeatures)
+        .exec()?)
+}
 
 /// TODO: Write proper documentation for this.
 /// This function seems to be looking up the active flags for conditional

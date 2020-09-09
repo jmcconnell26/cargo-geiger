@@ -194,6 +194,7 @@ dependencies = [
  "better-panic",
  "cargo",
  "cargo-platform",
+ "cargo_metadata",
  "colored",
  "console 0.11.3",
  "env_logger",
@@ -216,6 +217,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0226944a63d1bf35a3b5f948dd7c59e263db83695c9e8bffc4037de02e30f1d7"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c990b1694d29f8e477f456db1b2fcd5dd1cd6e29d5be082df45213e8834eb39a"
+dependencies = [
+ "semver 0.10.0",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
