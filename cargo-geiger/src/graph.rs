@@ -102,26 +102,16 @@ pub fn build_graph_cargo_metadata(
 ) -> CargoResult<GraphCargoMetadata> {
     let mut graph = GraphCargoMetadata {
         graph: petgraph::Graph::new(),
-        nodes: HashMap:: new(),
+        nodes: HashMap::new(),
     };
 
-    let resolve = metadata
-        .resolve
-        .unwrap();
+    let resolve = metadata.resolve.unwrap();
 
     let test = resolve.root.unwrap();
 
-    let root = metadata
-        .resolve
-        .as_ref()
-        .unwrap()
-        .root
-        .as_ref()
-        .unwrap();
+    let root = metadata.resolve.as_ref().unwrap().root.as_ref().unwrap();
 
-    let node = NodeCargoMetadata {
-        id: root.clone(),
-    };
+    let node = NodeCargoMetadata { id: root.clone() };
 
     graph.nodes.insert(test, graph.graph.add_node(node));
 
@@ -130,7 +120,7 @@ pub fn build_graph_cargo_metadata(
     let _graph_configuration = GraphConfiguration {
         target,
         cfgs,
-        extra_deps
+        extra_deps,
     };
 
     Ok(graph)

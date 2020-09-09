@@ -18,10 +18,12 @@ mod rs_file;
 mod scan;
 mod traversal;
 
-use crate::cli::{get_cargo_metadata, get_cfgs, get_registry, get_workspace, resolve};
+use crate::cli::{
+    get_cargo_metadata, get_cfgs, get_registry, get_workspace, resolve,
+};
 use crate::format::print::{Prefix, PrintConfig};
 use crate::format::{Charset, Pattern};
-use crate::graph::{build_graph, ExtraDeps, build_graph_cargo_metadata};
+use crate::graph::{build_graph, build_graph_cargo_metadata, ExtraDeps};
 use crate::scan::{run_scan_mode_default, run_scan_mode_forbid_only};
 
 use cargo::core::shell::{ColorChoice, Shell, Verbosity};
