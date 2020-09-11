@@ -1,4 +1,7 @@
-use crate::find::{find_unsafe_in_packages, _find_unsafe_in_packages_cargo_metadata, GeigerContext,};
+use crate::find::{
+    find_unsafe_in_packages, GeigerContext,
+    _find_unsafe_in_packages_cargo_metadata,
+};
 use crate::format::print::PrintConfig;
 use crate::format::table::{
     create_table_from_text_tree_lines, UNSAFE_COUNTERS_HEADER,
@@ -127,7 +130,7 @@ pub fn run_scan_mode_default_cargo_metadata(
         print_config.allow_partial_results,
         print_config.include_tests,
         ScanMode::Full,
-        |i, count| -> CargoResult<()> { progress.tick(i, count) }
+        |i, count| -> CargoResult<()> { progress.tick(i, count) },
     );
 
     progress.clear();

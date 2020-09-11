@@ -31,7 +31,8 @@ pub fn build_package_hash_map(
     let mut package_hash_map = HashMap::new();
 
     let cargo_metadata = get_cargo_metadata(manifest_path)?;
-    let resolve_package_ids = cargo_metadata.resolve
+    let resolve_package_ids = cargo_metadata
+        .resolve
         .unwrap()
         .nodes
         .iter()
@@ -42,22 +43,27 @@ pub fn build_package_hash_map(
         manifest_path,
         &mut package_hash_map,
         &resolve_package_ids,
-        root_package_id)?;
+        root_package_id,
+    )?;
 
     Ok(package_hash_map)
 }
 
 fn build_package_hash_map_inner(
     manifest_path: &Option<PathBuf>,
-    package_hash_map: &mut HashMap<cargo_metadata::PackageId, cargo_metadata::Package>,
+    package_hash_map: &mut HashMap<
+        cargo_metadata::PackageId,
+        cargo_metadata::Package,
+    >,
     resolve_package_ids: &HashSet<cargo_metadata::PackageId>,
     root_package_id: cargo_metadata::PackageId,
 ) -> CargoResult<()> {
-
     let cargo_metadata = get_cargo_metadata(manifest_path)?;
 
     for package in cargo_metadata.packages.iter() {
-        if !package_hash_map.contains_key(&package.id) && resolve_package_ids.contains(&package.id) {
+        if !package_hash_map.contains_key(&package.id)
+            && resolve_package_ids.contains(&package.id)
+        {
             package_hash_map.insert(package.clone().id, package.clone());
 
             let package_manifest_path = package.clone().manifest_path;
@@ -67,7 +73,7 @@ fn build_package_hash_map_inner(
                     &Some(package_manifest_path.clone()),
                     package_hash_map,
                     resolve_package_ids,
-                    package.id.clone()
+                    package.id.clone(),
                 )?;
             }
         }

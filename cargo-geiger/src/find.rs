@@ -1,6 +1,6 @@
 use crate::rs_file::{
-    into_rs_code_file, into_rs_code_file_cargo_metadata, is_file_with_ext, PackageMetrics, RsFile,
-    RsFileMetricsWrapper,
+    into_rs_code_file, into_rs_code_file_cargo_metadata, is_file_with_ext,
+    PackageMetrics, RsFile, RsFileMetricsWrapper,
 };
 use crate::scan::ScanMode;
 
@@ -21,7 +21,8 @@ pub struct GeigerContext {
 }
 
 pub struct _GeigerContextCargoMetadata {
-    pub package_id_to_metrics: HashMap<cargo_metadata::PackageId, PackageMetrics>,
+    pub package_id_to_metrics:
+        HashMap<cargo_metadata::PackageId, PackageMetrics>,
 }
 
 pub fn find_unsafe_in_packages<F>(
@@ -75,7 +76,9 @@ where
         }
         let _ = progress_step(i, pack_code_file_count);
     }
-    GeigerContext { package_id_to_metrics: pack_id_to_metrics }
+    GeigerContext {
+        package_id_to_metrics: pack_id_to_metrics,
+    }
 }
 
 pub fn _find_unsafe_in_packages_cargo_metadata<F>(
@@ -83,16 +86,19 @@ pub fn _find_unsafe_in_packages_cargo_metadata<F>(
     allow_partial_results: bool,
     include_tests: IncludeTests,
     mode: ScanMode,
-    mut progress_step: F
+    mut progress_step: F,
 ) -> _GeigerContextCargoMetadata
-    where
-        F: FnMut(usize, usize) -> CargoResult<()>,
+where
+    F: FnMut(usize, usize) -> CargoResult<()>,
 {
     let mut package_id_to_metrics = HashMap::new();
-    let package_code_files: Vec<_>= find_rs_files_in_packages_cargo_metadata(&packages).collect();
+    let package_code_files: Vec<_> =
+        find_rs_files_in_packages_cargo_metadata(&packages).collect();
     let package_code_file_count = package_code_files.len();
 
-    for (i, (package_id, rs_code_file)) in package_code_files.into_iter().enumerate() {
+    for (i, (package_id, rs_code_file)) in
+        package_code_files.into_iter().enumerate()
+    {
         let (is_entry_point, path_buf) = match rs_code_file {
             RsFile::LibRoot(path_buf) => (true, path_buf),
             RsFile::BinRoot(path_buf) => (true, path_buf),
@@ -113,7 +119,11 @@ pub fn _find_unsafe_in_packages_cargo_metadata<F>(
                         e
                     );
                 } else {
-                    panic!("Failed to parse file: {}, {:?} ", &path_buf.display(), e);
+                    panic!(
+                        "Failed to parse file: {}, {:?} ",
+                        &path_buf.display(),
+                        e
+                    );
                 }
             }
             Ok(file_metrics) => {
@@ -132,7 +142,9 @@ pub fn _find_unsafe_in_packages_cargo_metadata<F>(
         let _ = progress_step(i, package_code_file_count);
     }
 
-    _GeigerContextCargoMetadata { package_id_to_metrics }
+    _GeigerContextCargoMetadata {
+        package_id_to_metrics,
+    }
 }
 
 fn find_rs_files_in_dir(dir: &Path) -> impl Iterator<Item = PathBuf> {
@@ -185,7 +197,9 @@ fn find_rs_files_in_package(pack: &Package) -> Vec<RsFile> {
     out
 }
 
-fn find_rs_files_in_package_cargo_metadata(package: &cargo_metadata::Package) -> Vec<RsFile> {
+fn find_rs_files_in_package_cargo_metadata(
+    package: &cargo_metadata::Package,
+) -> Vec<RsFile> {
     let mut canonical_targets = HashMap::new();
     for target in package.targets.iter() {
         let path = target.clone().src_path;
@@ -237,7 +251,7 @@ fn find_rs_files_in_packages<'a>(
 }
 
 fn find_rs_files_in_packages_cargo_metadata<'a>(
-    packages: &'a Vec::<cargo_metadata::Package>
+    packages: &'a Vec<cargo_metadata::Package>,
 ) -> impl Iterator<Item = (cargo_metadata::PackageId, RsFile)> + 'a {
     packages.iter().flat_map(|package| {
         find_rs_files_in_package_cargo_metadata(package)

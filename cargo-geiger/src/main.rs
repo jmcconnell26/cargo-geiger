@@ -18,7 +18,10 @@ mod rs_file;
 mod scan;
 mod traversal;
 
-use crate::cli::{get_cargo_metadata, get_cfgs, get_registry, get_workspace, resolve, build_package_hash_map};
+use crate::cli::{
+    build_package_hash_map, get_cargo_metadata, get_cfgs, get_registry,
+    get_workspace, resolve,
+};
 use crate::format::print::{Prefix, PrintConfig};
 use crate::format::{Charset, Pattern};
 use crate::graph::{build_graph, build_graph_cargo_metadata, ExtraDeps};
@@ -238,32 +241,31 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
     };
 
     let root_package_id_cargo_metadata = match args.package {
-        Some(ref pkg) =>
-            cargo_metadata
-                .clone()
-                .resolve
-                .unwrap()
-                .clone()
-                .nodes
-                .iter()
-                .filter(|n| &n.id.repr == pkg)
-                .map(|n| n.id.clone())
-                .collect::<Vec<cargo_metadata::PackageId>>()
-                .pop()
-                .unwrap(),
-        None =>
-            cargo_metadata
-                .clone()
-                .resolve
-                .unwrap()
-                .clone()
-                .root
-                .unwrap(),
+        Some(ref pkg) => cargo_metadata
+            .clone()
+            .resolve
+            .unwrap()
+            .clone()
+            .nodes
+            .iter()
+            .filter(|n| &n.id.repr == pkg)
+            .map(|n| n.id.clone())
+            .collect::<Vec<cargo_metadata::PackageId>>()
+            .pop()
+            .unwrap(),
+        None => cargo_metadata
+            .clone()
+            .resolve
+            .unwrap()
+            .clone()
+            .root
+            .unwrap(),
     };
 
     let _package_hash_map = build_package_hash_map(
         &args.manifest_path.clone(),
-    root_package_id_cargo_metadata.clone())?;
+        root_package_id_cargo_metadata.clone(),
+    )?;
 
     let config_host = config.load_global_rustc(Some(&ws))?.host;
     let target = if args.all_targets {

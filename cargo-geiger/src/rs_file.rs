@@ -63,14 +63,19 @@ pub fn into_rs_code_file(kind: &TargetKind, path: PathBuf) -> RsFile {
     }
 }
 
-pub fn into_rs_code_file_cargo_metadata(raw_target_kind: Vec<String>, path: PathBuf) -> RsFile {
-    if raw_target_kind.contains(&String::from("lib")) &&
-        !raw_target_kind.contains(&String::from("example")) {
+pub fn into_rs_code_file_cargo_metadata(
+    raw_target_kind: Vec<String>,
+    path: PathBuf,
+) -> RsFile {
+    if raw_target_kind.contains(&String::from("lib"))
+        && !raw_target_kind.contains(&String::from("example"))
+    {
         return RsFile::LibRoot(path);
     }
 
-    if raw_target_kind.contains(&String::from("bin")) &&
-        !raw_target_kind.contains(&String::from("example")) {
+    if raw_target_kind.contains(&String::from("bin"))
+        && !raw_target_kind.contains(&String::from("example"))
+    {
         return RsFile::BinRoot(path);
     }
 

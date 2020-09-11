@@ -1,0 +1,1 @@
+RUST_LOG=warn cargo run -- --manifest-path /home/joshmc/Desktop/git/cargo-geiger/test_crates/test3_package_with_nested_deps/Cargo.toml
