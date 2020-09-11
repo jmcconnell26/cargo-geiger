@@ -45,7 +45,7 @@ pub fn create_table_from_text_tree_lines(
                     panic!("Expected to find package by id: {}", id);
                 });
                 let pack_metrics =
-                    match geiger_context.pack_id_to_metrics.get(&id) {
+                    match geiger_context.package_id_to_metrics.get(&id) {
                         Some(m) => m,
                         None => {
                             eprintln!(

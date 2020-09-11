@@ -20,8 +20,61 @@ use cargo::util::{self, important_paths, CargoResult};
 use cargo::Config;
 use cargo_metadata::{CargoOpt, Metadata, MetadataCommand};
 use cargo_platform::Cfg;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::{self, FromStr};
+
+pub fn build_package_hash_map(
+    manifest_path: &Option<PathBuf>,
+    root_package_id: cargo_metadata::PackageId,
+) -> CargoResult<HashMap<cargo_metadata::PackageId, cargo_metadata::Package>> {
+    let mut package_hash_map = HashMap::new();
+
+    let cargo_metadata = get_cargo_metadata(manifest_path)?;
+    let resolve_package_ids = cargo_metadata.resolve
+        .unwrap()
+        .nodes
+        .iter()
+        .map(|n| n.id.clone())
+        .collect::<HashSet<cargo_metadata::PackageId>>();
+
+    build_package_hash_map_inner(
+        manifest_path,
+        &mut package_hash_map,
+        &resolve_package_ids,
+        root_package_id)?;
+
+    Ok(package_hash_map)
+}
+
+fn build_package_hash_map_inner(
+    manifest_path: &Option<PathBuf>,
+    package_hash_map: &mut HashMap<cargo_metadata::PackageId, cargo_metadata::Package>,
+    resolve_package_ids: &HashSet<cargo_metadata::PackageId>,
+    root_package_id: cargo_metadata::PackageId,
+) -> CargoResult<()> {
+
+    let cargo_metadata = get_cargo_metadata(manifest_path)?;
+
+    for package in cargo_metadata.packages.iter() {
+        if !package_hash_map.contains_key(&package.id) && resolve_package_ids.contains(&package.id) {
+            package_hash_map.insert(package.clone().id, package.clone());
+
+            let package_manifest_path = package.clone().manifest_path;
+
+            if package.id != root_package_id {
+                build_package_hash_map_inner(
+                    &Some(package_manifest_path.clone()),
+                    package_hash_map,
+                    resolve_package_ids,
+                    package.id.clone()
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
 
 pub fn get_cargo_metadata(
     manifest_path: &Option<PathBuf>,

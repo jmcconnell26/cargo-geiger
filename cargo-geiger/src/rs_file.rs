@@ -63,6 +63,24 @@ pub fn into_rs_code_file(kind: &TargetKind, path: PathBuf) -> RsFile {
     }
 }
 
+pub fn into_rs_code_file_cargo_metadata(raw_target_kind: Vec<String>, path: PathBuf) -> RsFile {
+    if raw_target_kind.contains(&String::from("lib")) &&
+        !raw_target_kind.contains(&String::from("example")) {
+        return RsFile::LibRoot(path);
+    }
+
+    if raw_target_kind.contains(&String::from("bin")) &&
+        !raw_target_kind.contains(&String::from("example")) {
+        return RsFile::BinRoot(path);
+    }
+
+    if raw_target_kind.contains(&String::from("custombuild")) {
+        return RsFile::CustomBuildRoot(path);
+    }
+
+    RsFile::Other(path)
+}
+
 pub fn is_file_with_ext(entry: &DirEntry, file_ext: &str) -> bool {
     if !entry.file_type().is_file() {
         return false;

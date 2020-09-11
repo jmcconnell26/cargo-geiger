@@ -1,11 +1,11 @@
-use crate::find::{find_unsafe_in_packages, GeigerContext};
+use crate::find::{find_unsafe_in_packages, _find_unsafe_in_packages_cargo_metadata, GeigerContext,};
 use crate::format::print::PrintConfig;
 use crate::format::table::{
     create_table_from_text_tree_lines, UNSAFE_COUNTERS_HEADER,
 };
 use crate::format::tree::TextTreeLine;
 use crate::format::{get_kind_group_name, EmojiSymbols, Pattern, SymbolKind};
-use crate::graph::Graph;
+use crate::graph::{Graph, GraphCargoMetadata};
 use crate::rs_file::resolve_rs_file_deps;
 use crate::traversal::walk_dependency_tree;
 use crate::Args;
@@ -100,6 +100,57 @@ pub fn run_scan_mode_default(
     }
 }
 
+pub fn run_scan_mode_default_cargo_metadata(
+    args: &Args,
+    config: &Config,
+    _graph: &GraphCargoMetadata,
+    packages: &Vec<cargo_metadata::Package>,
+    print_config: &PrintConfig,
+    _root_package_id: cargo_metadata::PackageId,
+    workspace: &Workspace,
+) -> CliResult {
+    let mut scan_output_lines = Vec::<String>::new();
+    let compile_options = build_compile_options(args, config);
+    let rs_files_used =
+        resolve_rs_file_deps(&compile_options, &workspace).unwrap();
+    if print_config.verbosity == Verbosity::Verbose {
+        let mut rs_files_used_lines =
+            construct_rs_files_used_lines(&rs_files_used);
+        scan_output_lines.append(&mut rs_files_used_lines);
+    }
+
+    let mut progress = cargo::util::Progress::new("Scanning", config);
+    let emoji_symbols = EmojiSymbols::new(print_config.charset);
+
+    let _geiger_context = _find_unsafe_in_packages_cargo_metadata(
+        &packages,
+        print_config.allow_partial_results,
+        print_config.include_tests,
+        ScanMode::Full,
+        |i, count| -> CargoResult<()> { progress.tick(i, count) }
+    );
+
+    progress.clear();
+    config.shell().status("Scanning", "done")?;
+
+    let mut output_key_lines =
+        construct_scan_mode_default_output_key_lines(&emoji_symbols);
+    scan_output_lines.append(&mut output_key_lines);
+
+    // TODO walk dependency tree
+
+    let warning_count = 0;
+
+    if warning_count > 0 {
+        Err(CliError::new(
+            anyhow::Error::new(FoundWarningsError { warning_count }),
+            1,
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn run_scan_mode_forbid_only(
     config: &Config,
     packages: &PackageSet,
@@ -135,7 +186,7 @@ pub fn run_scan_mode_forbid_only(
             TextTreeLine::Package { id, tree_vines } => {
                 let package = packages.get_one(id).unwrap(); // FIXME
                 let name = format_package_name(package, print_config.format);
-                let pack_metrics = geiger_ctx.pack_id_to_metrics.get(&id);
+                let pack_metrics = geiger_ctx.package_id_to_metrics.get(&id);
                 let package_forbids_unsafe = match pack_metrics {
                     None => false, // no metrics available, .rs parsing failed?
                     Some(pm) => pm
@@ -349,7 +400,7 @@ fn list_files_used_but_not_scanned(
     warning_count: &mut u64,
 ) {
     let scanned_files = geiger_context
-        .pack_id_to_metrics
+        .package_id_to_metrics
         .iter()
         .flat_map(|(_k, v)| v.rs_path_to_metrics.keys())
         .collect::<HashSet<&PathBuf>>();
