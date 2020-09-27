@@ -1,16 +1,11 @@
-use crate::find::{
-    find_unsafe_in_packages, GeigerContext,
-    _find_unsafe_in_packages_cargo_metadata,
-};
+use crate::find::{find_unsafe_in_packages, GeigerContext, find_unsafe_in_packages_cargo_metadata, GeigerContextCargoMetadata};
 use crate::format::print::PrintConfig;
-use crate::format::table::{
-    create_table_from_text_tree_lines, UNSAFE_COUNTERS_HEADER,
-};
-use crate::format::tree::TextTreeLine;
+use crate::format::table::{_create_table_from_text_tree_lines, UNSAFE_COUNTERS_HEADER, create_table_from_text_tree_lines_cargo_metadata};
+use crate::format::tree::{TextTreeLine};
 use crate::format::{get_kind_group_name, EmojiSymbols, Pattern, SymbolKind};
 use crate::graph::{Graph, GraphCargoMetadata};
 use crate::rs_file::resolve_rs_file_deps;
-use crate::traversal::walk_dependency_tree;
+use crate::traversal::{walk_dependency_tree, walk_dependency_tree_cargo_metadata};
 use crate::Args;
 
 use cargo::core::compiler::CompileMode;
@@ -22,7 +17,7 @@ use cargo::util::CargoResult;
 use cargo::Config;
 use cargo::{CliError, CliResult};
 use colored::Colorize;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
@@ -37,7 +32,7 @@ pub enum ScanMode {
     EntryPointsOnly,
 }
 
-pub fn run_scan_mode_default(
+pub fn _run_scan_mode_default(
     config: &Config,
     workspace: &Workspace,
     packages: &PackageSet,
@@ -74,7 +69,7 @@ pub fn run_scan_mode_default(
 
     let tree_lines = walk_dependency_tree(root_pack_id, &graph, &print_config);
     let (mut table_lines, mut warning_count) =
-        create_table_from_text_tree_lines(
+        _create_table_from_text_tree_lines(
             &geiger_context,
             packages,
             print_config,
@@ -87,7 +82,7 @@ pub fn run_scan_mode_default(
         println!("{}", scan_output_line);
     }
 
-    list_files_used_but_not_scanned(
+    _list_files_used_but_not_scanned(
         geiger_context,
         &rs_files_used,
         &mut warning_count,
@@ -106,12 +101,17 @@ pub fn run_scan_mode_default(
 pub fn run_scan_mode_default_cargo_metadata(
     args: &Args,
     config: &Config,
-    _graph: &GraphCargoMetadata,
-    packages: &Vec<cargo_metadata::Package>,
+    graph: &GraphCargoMetadata,
+    package_hashmap: &HashMap<cargo_metadata::PackageId, (cargo_metadata::Package, cargo_metadata::DependencyKind)>,
     print_config: &PrintConfig,
-    _root_package_id: cargo_metadata::PackageId,
+    root_package_id: cargo_metadata::PackageId,
     workspace: &Workspace,
 ) -> CliResult {
+    let packages = package_hashmap
+        .iter()
+        .map(|(_, (p, _))| p.clone())
+        .collect::<Vec<cargo_metadata::Package>>();
+
     let mut scan_output_lines = Vec::<String>::new();
     let compile_options = build_compile_options(args, config);
     let rs_files_used =
@@ -125,7 +125,7 @@ pub fn run_scan_mode_default_cargo_metadata(
     let mut progress = cargo::util::Progress::new("Scanning", config);
     let emoji_symbols = EmojiSymbols::new(print_config.charset);
 
-    let _geiger_context = _find_unsafe_in_packages_cargo_metadata(
+    let geiger_context = find_unsafe_in_packages_cargo_metadata(
         &packages,
         print_config.allow_partial_results,
         print_config.include_tests,
@@ -140,9 +140,31 @@ pub fn run_scan_mode_default_cargo_metadata(
         construct_scan_mode_default_output_key_lines(&emoji_symbols);
     scan_output_lines.append(&mut output_key_lines);
 
-    // TODO walk dependency tree
+    let text_tree_lines = walk_dependency_tree_cargo_metadata(
+        root_package_id,
+        &graph,
+        print_config
+    );
 
-    let warning_count = 0;
+    let (mut table_lines, mut warning_count) =
+        create_table_from_text_tree_lines_cargo_metadata(
+            &geiger_context,
+            package_hashmap,
+            print_config,
+            &rs_files_used,
+            text_tree_lines,
+        );
+    scan_output_lines.append(&mut table_lines);
+
+    for scan_output_line in scan_output_lines {
+        println!("{}", scan_output_line);
+    }
+
+    list_files_used_but_not_scanned_cargo_metadata(
+        geiger_context,
+        &rs_files_used,
+        &mut warning_count,
+    );
 
     if warning_count > 0 {
         Err(CliError::new(
@@ -397,8 +419,29 @@ fn format_package_name(package: &Package, pattern: &Pattern) -> String {
     )
 }
 
-fn list_files_used_but_not_scanned(
+fn _list_files_used_but_not_scanned(
     geiger_context: GeigerContext,
+    rs_files_used: &HashSet<PathBuf>,
+    warning_count: &mut u64,
+) {
+    let scanned_files = geiger_context
+        .package_id_to_metrics
+        .iter()
+        .flat_map(|(_k, v)| v.rs_path_to_metrics.keys())
+        .collect::<HashSet<&PathBuf>>();
+    let used_but_not_scanned =
+        rs_files_used.iter().filter(|p| !scanned_files.contains(p));
+    for path in used_but_not_scanned {
+        eprintln!(
+            "WARNING: Dependency file was never scanned: {}",
+            path.display()
+        );
+        *warning_count += 1;
+    }
+}
+
+fn list_files_used_but_not_scanned_cargo_metadata(
+    geiger_context: GeigerContextCargoMetadata,
     rs_files_used: &HashSet<PathBuf>,
     warning_count: &mut u64,
 ) {

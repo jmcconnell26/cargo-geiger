@@ -11,6 +11,8 @@
 // TODO: Consider making this a lib.rs (again) and expose a full API, excluding
 // only the terminal output..? That API would be dependent on cargo.
 
+use crate::dependency_kind::build_dependency_kind_hashmap;
+
 use cargo::core::package::PackageSet;
 use cargo::core::registry::PackageRegistry;
 use cargo::core::resolver::ResolveOpts;
@@ -24,13 +26,20 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::{self, FromStr};
 
+// This should be a resolve graph
 pub fn build_package_hash_map(
     manifest_path: &Option<PathBuf>,
     root_package_id: cargo_metadata::PackageId,
-) -> CargoResult<HashMap<cargo_metadata::PackageId, cargo_metadata::Package>> {
+) -> CargoResult<HashMap<cargo_metadata::PackageId, (cargo_metadata::Package, cargo_metadata::DependencyKind)>> {
     let mut package_hash_map = HashMap::new();
 
     let cargo_metadata = get_cargo_metadata(manifest_path)?;
+
+    let dependency_kind_hashmap = build_dependency_kind_hashmap(
+        &cargo_metadata,
+        root_package_id.clone(),
+    )?;
+
     let resolve_package_ids = cargo_metadata
         .resolve
         .unwrap()
@@ -40,6 +49,7 @@ pub fn build_package_hash_map(
         .collect::<HashSet<cargo_metadata::PackageId>>();
 
     build_package_hash_map_inner(
+        &dependency_kind_hashmap,
         manifest_path,
         &mut package_hash_map,
         &resolve_package_ids,
@@ -50,10 +60,14 @@ pub fn build_package_hash_map(
 }
 
 fn build_package_hash_map_inner(
+    dependency_kind_hashmap: &HashMap<
+        cargo_metadata::PackageId,
+        cargo_metadata::DependencyKind,
+    >,
     manifest_path: &Option<PathBuf>,
     package_hash_map: &mut HashMap<
         cargo_metadata::PackageId,
-        cargo_metadata::Package,
+        (cargo_metadata::Package, cargo_metadata::DependencyKind),
     >,
     resolve_package_ids: &HashSet<cargo_metadata::PackageId>,
     root_package_id: cargo_metadata::PackageId,
@@ -64,12 +78,17 @@ fn build_package_hash_map_inner(
         if !package_hash_map.contains_key(&package.id)
             && resolve_package_ids.contains(&package.id)
         {
-            package_hash_map.insert(package.clone().id, package.clone());
+            let current_package_id = package.clone().id;
+
+            package_hash_map.insert(
+                current_package_id.clone(),
+                (package.clone(), dependency_kind_hashmap.get(&current_package_id).unwrap().clone()));
 
             let package_manifest_path = package.clone().manifest_path;
 
             if package.id != root_package_id {
                 build_package_hash_map_inner(
+                    dependency_kind_hashmap,
                     &Some(package_manifest_path.clone()),
                     package_hash_map,
                     resolve_package_ids,

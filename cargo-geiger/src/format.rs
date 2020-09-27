@@ -13,6 +13,7 @@ use std::str::{self, FromStr};
 use strum_macros::EnumIter;
 
 use self::parse::{Parser, RawChunk};
+use cargo_metadata::DependencyKind;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Charset {
@@ -45,6 +46,11 @@ pub struct Display<'a> {
     metadata: &'a ManifestMetadata,
 }
 
+pub struct DisplayCargoMetadata<'a> {
+    pattern: &'a Pattern,
+    package: &'a cargo_metadata::Package,
+}
+
 impl<'a> fmt::Display for Display<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for chunk in &self.pattern.0 {
@@ -65,6 +71,36 @@ impl<'a> fmt::Display for Display<'a> {
                 }
                 Chunk::Repository => {
                     if let Some(ref repository) = self.metadata.repository {
+                        (write!(fmt, "{}", repository))?
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Display for DisplayCargoMetadata<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        for chunk in &self.pattern.0 {
+            match *chunk {
+                Chunk::Raw(ref s) => (fmt.write_str(s))?,
+                Chunk::Package => {
+                    (write!(
+                        fmt,
+                        "{} {}",
+                        self.package.name,
+                        self.package.version
+                    ))?
+                }
+                Chunk::License => {
+                    if let Some(ref license) = self.package.license {
+                        (write!(fmt, "{}", license))?
+                    }
+                }
+                Chunk::Repository => {
+                    if let Some(ref repository) = self.package.repository {
                         (write!(fmt, "{}", repository))?
                     }
                 }
@@ -120,6 +156,16 @@ impl Pattern {
         }
     }
 
+    pub fn display_cargo_metadata<'a>(
+        &'a self,
+        package: &'a cargo_metadata::Package,
+    ) -> DisplayCargoMetadata<'a> {
+        DisplayCargoMetadata {
+            pattern: self,
+            package,
+        }
+    }
+
     pub fn try_build(format: &str) -> Result<Pattern, Box<dyn Error>> {
         let mut chunks = vec![];
 
@@ -153,6 +199,15 @@ pub fn get_kind_group_name(dep_kind: DepKind) -> Option<&'static str> {
         DepKind::Normal => None,
         DepKind::Build => Some("[build-dependencies]"),
         DepKind::Development => Some("[dev-dependencies]"),
+    }
+}
+
+pub fn get_dependency_kind_group_name(dependency_kind: DependencyKind) -> Option<&'static str> {
+    match dependency_kind {
+        DependencyKind::Build => Some("[build-dependencies]"),
+        DependencyKind::Development => Some("[dev-dependencies]"),
+        DependencyKind::Normal => None,
+        _ => panic!("Unknown dependency kind")
     }
 }
 

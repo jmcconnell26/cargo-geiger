@@ -2,7 +2,7 @@
 //! TODO: Refactor this file to only deal with command line argument processing.
 
 #![forbid(unsafe_code)]
-//#![forbid(warnings)]
+#![forbid(warnings)]
 
 extern crate cargo;
 extern crate colored;
@@ -11,6 +11,7 @@ extern crate strum;
 extern crate strum_macros;
 
 mod cli;
+mod dependency_kind;
 mod find;
 mod format;
 mod graph;
@@ -25,7 +26,7 @@ use crate::cli::{
 use crate::format::print::{Prefix, PrintConfig};
 use crate::format::{Charset, Pattern};
 use crate::graph::{build_graph, build_graph_cargo_metadata, ExtraDeps};
-use crate::scan::{run_scan_mode_default, run_scan_mode_forbid_only};
+use crate::scan::{run_scan_mode_forbid_only, run_scan_mode_default_cargo_metadata};
 
 use cargo::core::shell::{ColorChoice, Shell, Verbosity};
 use cargo::{CliError, CliResult, Config};
@@ -262,7 +263,7 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
             .unwrap(),
     };
 
-    let _package_hash_map = build_package_hash_map(
+    let package_hash_map = build_package_hash_map(
         &args.manifest_path.clone(),
         root_package_id_cargo_metadata.clone(),
     )?;
@@ -304,13 +305,13 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
         extra_deps.clone(),
     )?;
 
-    /*let _cargo_metadata_graph = build_graph_cargo_metadata(
+    let cargo_metadata_graph = build_graph_cargo_metadata(
         cfgs.as_deref(),
         extra_deps,
         &cargo_metadata,
-        _package_hash_map,
+        &package_hash_map,
         target,
-    )?;*/
+    )?;
 
     let direction = if args.invert {
         EdgeDirection::Incoming
@@ -354,17 +355,17 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
             &print_config,
         )
     } else {
-        /*run_scan_mode_default_cargo_metadata(
+        run_scan_mode_default_cargo_metadata(
             &args,
             &config,
             &cargo_metadata_graph,
-            &cargo_metadata.packages,
+            &package_hash_map,
             &print_config,
             root_package_id_cargo_metadata,
             &ws,
-        )?;*/
+        )
 
-        run_scan_mode_default(
+        /*run_scan_mode_default(
             &config,
             &ws,
             &packages,
@@ -372,7 +373,7 @@ fn real_main(args: &Args, config: &mut Config) -> CliResult {
             &graph,
             &print_config,
             &args,
-        )
+        )*/
     }
 }
 

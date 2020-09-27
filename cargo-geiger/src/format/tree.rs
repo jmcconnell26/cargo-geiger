@@ -13,6 +13,11 @@ pub enum TextTreeLine {
     ExtraDepsGroup { kind: DepKind, tree_vines: String },
 }
 
+pub enum TextTreeLineCargoMetadata {
+    Package { id: cargo_metadata::PackageId, tree_vines: String },
+    ExtraDependenciesGroup { kind: cargo_metadata::DependencyKind, tree_vines: String },
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TreeSymbols {
     pub down: &'static str,

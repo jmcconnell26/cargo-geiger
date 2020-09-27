@@ -98,9 +98,9 @@ pub fn build_graph_cargo_metadata(
     cfgs: Option<&[Cfg]>,
     extra_deps: ExtraDeps,
     metadata: &Metadata,
-    package_hash_map: HashMap<
+    package_hash_map: &HashMap<
         cargo_metadata::PackageId,
-        cargo_metadata::Package,
+        (cargo_metadata::Package, cargo_metadata::DependencyKind),
     >,
     target: Option<&str>,
 ) -> CargoResult<GraphCargoMetadata> {
@@ -110,9 +110,7 @@ pub fn build_graph_cargo_metadata(
     };
 
     let resolve = metadata.clone().resolve.unwrap().clone();
-
     let root = resolve.root.unwrap();
-
     let node = NodeCargoMetadata { id: root.clone() };
 
     graph.nodes.insert(root.clone(), graph.graph.add_node(node));
@@ -126,7 +124,6 @@ pub fn build_graph_cargo_metadata(
     };
 
     while let Some(package_id) = pending_packages.pop() {
-        // add package dependencies to graph
         add_package_dependencies_to_graph_cargo_metadata(
             &graph_configuration,
             &mut graph,
@@ -170,12 +167,14 @@ fn add_graph_node_if_not_present_and_edge(
 }
 
 fn add_graph_node_if_not_present_and_edge_cargo_metadata(
-    dependency: &cargo_metadata::Dependency,
     dependency_package_id: cargo_metadata::PackageId,
+    dependency_kind: DependencyKind,
     graph: &mut GraphCargoMetadata,
     index: NodeIndex,
     pending_packages: &mut Vec<cargo_metadata::PackageId>,
 ) {
+    //println!("Adding edge from root to {}", dependency_package_id.repr);
+
     let dependency_index =
         match graph.nodes.entry(dependency_package_id.clone()) {
             Entry::Occupied(e) => *e.get(),
@@ -190,7 +189,7 @@ fn add_graph_node_if_not_present_and_edge_cargo_metadata(
 
     graph
         .graph
-        .add_edge(index, dependency_index, dependency.kind);
+        .add_edge(index, dependency_index, dependency_kind);
 }
 
 #[doc(hidden)]
@@ -252,12 +251,13 @@ fn add_package_dependencies_to_graph_cargo_metadata(
     package_id: &cargo_metadata::PackageId,
     package_hash_map: &HashMap<
         cargo_metadata::PackageId,
-        cargo_metadata::Package,
+        (cargo_metadata::Package, cargo_metadata::DependencyKind),
     >,
     pending_packages: &mut Vec<cargo_metadata::PackageId>,
 ) -> CargoResult<()> {
+
     let index = graph.nodes[&package_id];
-    let package = metadata
+    let _package = metadata
         .packages
         .iter()
         .filter(|p| p.id.eq(package_id))
@@ -265,12 +265,24 @@ fn add_package_dependencies_to_graph_cargo_metadata(
         .pop()
         .unwrap();
 
-    for (package_id, package) in package_hash_map.into_iter() {
+    // need to implement custom resolve for deps per package
+
+    let test = metadata.resolve.unwrap();
+
+    for (_package_id, (_package, dependency_kind)) in package_hash_map.into_iter() {
         // TODO - filter dependencies further here
 
         // TODO - Fix here to make deps handle properly
 
-        println!("{}", package_id.repr);
+        /*let dependency = _package
+            .dependencies
+            .iter()
+            .filter(|d| d.name == _package.name)
+            .collect::<Vec<&cargo_metadata::Dependency>>()
+            .pop()
+            .unwrap();
+
+        //println!("{}", self_cont_dep);
 
         let dependency_id = metadata
             .packages
@@ -279,11 +291,11 @@ fn add_package_dependencies_to_graph_cargo_metadata(
             .map(|p| p.id.clone())
             .collect::<Vec<cargo_metadata::PackageId>>()
             .pop()
-            .unwrap();
+            .unwrap();*/
 
         add_graph_node_if_not_present_and_edge_cargo_metadata(
-            dependency,
-            dependency_id,
+            _package_id.clone(),
+            dependency_kind.clone(),
             graph,
             index,
             pending_packages,

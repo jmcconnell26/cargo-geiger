@@ -1,9 +1,7 @@
-use crate::find::GeigerContext;
+use crate::find::{GeigerContext, GeigerContextCargoMetadata};
 use crate::format::print::{colorize, PrintConfig};
-use crate::format::tree::TextTreeLine;
-use crate::format::{
-    get_kind_group_name, CrateDetectionStatus, EmojiSymbols, SymbolKind,
-};
+use crate::format::tree::{TextTreeLine, TextTreeLineCargoMetadata};
+use crate::format::{get_kind_group_name, CrateDetectionStatus, EmojiSymbols, SymbolKind, get_dependency_kind_group_name};
 use crate::rs_file::PackageMetrics;
 
 use cargo::core::package::PackageSet;
@@ -23,7 +21,7 @@ pub const UNSAFE_COUNTERS_HEADER: [&str; 6] = [
     "Dependency",
 ];
 
-pub fn create_table_from_text_tree_lines(
+pub fn _create_table_from_text_tree_lines(
     geiger_context: &GeigerContext,
     package_set: &PackageSet,
     print_config: &PrintConfig,
@@ -31,9 +29,7 @@ pub fn create_table_from_text_tree_lines(
     text_tree_lines: Vec<TextTreeLine>,
 ) -> (Vec<String>, u64) {
     let mut table_lines = Vec::<String>::new();
-
     let mut total_package_counts = TotalPackageCounts::new();
-
     let mut package_status = HashMap::new();
     let mut warning_count = 0;
 
@@ -161,6 +157,178 @@ pub fn create_table_from_text_tree_lines(
             }
             TextTreeLine::ExtraDepsGroup { kind, tree_vines } => {
                 let name = get_kind_group_name(kind);
+                if name.is_none() {
+                    continue;
+                }
+                let name = name.unwrap();
+
+                // TODO: Fix the alignment on macOS (others too?)
+                table_lines.push(format!(
+                    "{}{}{}",
+                    table_row_empty(),
+                    tree_vines,
+                    name
+                ))
+            }
+        }
+    }
+
+    table_lines.push(String::new());
+    let total_detection_status =
+        total_package_counts.get_total_detection_status();
+
+    table_lines.push(format!(
+        "{}",
+        table_footer(
+            total_package_counts.total_counter_block,
+            total_package_counts.total_unused_counter_block,
+            total_detection_status
+        )
+    ));
+
+    table_lines.push(String::new());
+
+    (table_lines, warning_count)
+}
+
+pub fn create_table_from_text_tree_lines_cargo_metadata(
+    geiger_context: &GeigerContextCargoMetadata,
+    package_hashmap: &HashMap<cargo_metadata::PackageId, (cargo_metadata::Package, cargo_metadata::DependencyKind)>,
+    print_config: &PrintConfig,
+    rs_files_used: &HashSet<PathBuf>,
+    text_tree_lines: Vec<TextTreeLineCargoMetadata>,
+) -> (Vec<String>, u64) {
+    let mut table_lines = Vec::<String>::new();
+    let mut total_package_counts = TotalPackageCounts::new();
+    let mut package_status = HashMap::new();
+    let mut warning_count = 0;
+
+    for text_tree_line in text_tree_lines {
+        match text_tree_line {
+            TextTreeLineCargoMetadata::Package { id, tree_vines } => {
+                let (package, _) = package_hashmap.get(&id.clone()).unwrap_or_else(|| {
+                    panic!("Expected to find package by id: {}", id);
+                });
+                let package_metrics =
+                    match geiger_context.package_id_to_metrics.get(&id) {
+                        Some(m) => {
+                            //TODO figure out where metrics are missing
+                            m
+                        },
+                        None => {
+                            eprintln!(
+                                "WARNING: No metrics found for package: {}",
+                                id
+                            );
+                            warning_count += 1;
+                            continue;
+                        }
+                    };
+                package_status.entry(id.clone()).or_insert_with(|| {
+                    let unsafe_found = package_metrics
+                        .rs_path_to_metrics
+                        .iter()
+                        .filter(|(k, _)| rs_files_used.contains(k.as_path()))
+                        .any(|(_, v)| v.metrics.counters.has_unsafe());
+
+                    // The crate level "forbids unsafe code" metric __used to__ only
+                    // depend on entry point source files that were __used by the
+                    // build__. This was too subtle in my opinion. For a crate to be
+                    // classified as forbidding unsafe code, all entry point source
+                    // files must declare `forbid(unsafe_code)`. Either a crate
+                    // forbids all unsafe code or it allows it _to some degree_.
+                    let crate_forbids_unsafe = package_metrics
+                        .rs_path_to_metrics
+                        .iter()
+                        .filter(|(_, v)| v.is_crate_entry_point)
+                        .all(|(_, v)| v.metrics.forbids_unsafe);
+
+                    for (path_buf, rs_file_metrics_wrapper) in
+                    &package_metrics.rs_path_to_metrics
+                    {
+                        let target = if rs_files_used.contains(path_buf) {
+                            &mut total_package_counts.total_counter_block
+                        } else {
+                            &mut total_package_counts.total_unused_counter_block
+                        };
+                        *target = target.clone()
+                            + rs_file_metrics_wrapper.metrics.counters.clone();
+                    }
+
+                    match (unsafe_found, crate_forbids_unsafe) {
+                        (false, true) => {
+                            total_package_counts
+                                .none_detected_forbids_unsafe += 1;
+                            CrateDetectionStatus::NoneDetectedForbidsUnsafe
+                        }
+                        (false, false) => {
+                            total_package_counts.none_detected_allows_unsafe +=
+                                1;
+                            CrateDetectionStatus::NoneDetectedAllowsUnsafe
+                        }
+                        (true, _) => {
+                            total_package_counts.unsafe_detected += 1;
+                            CrateDetectionStatus::UnsafeDetected
+                        }
+                    }
+                });
+
+                let emoji_symbols = EmojiSymbols::new(print_config.charset);
+
+                let crate_detection_status =
+                    package_status.get(&id.clone()).unwrap_or_else(|| {
+                        panic!("Expected to find package by id: {}", &id)
+                    });
+                let icon = match crate_detection_status {
+                    CrateDetectionStatus::NoneDetectedForbidsUnsafe => {
+                        emoji_symbols.emoji(SymbolKind::Lock)
+                    }
+                    CrateDetectionStatus::NoneDetectedAllowsUnsafe => {
+                        emoji_symbols.emoji(SymbolKind::QuestionMark)
+                    }
+                    CrateDetectionStatus::UnsafeDetected => {
+                        emoji_symbols.emoji(SymbolKind::Rads)
+                    }
+                };
+
+                let package_name = colorize(
+                    format!(
+                        "{}",
+                        print_config
+                            .format
+                            .display_cargo_metadata(&package)
+                    ),
+                    &crate_detection_status,
+                );
+                let unsafe_info = colorize(
+                    table_row(&package_metrics, &rs_files_used),
+                    &crate_detection_status,
+                );
+
+                let shift_chars = unsafe_info.chars().count() + 4;
+
+                let mut line = String::new();
+                line.push_str(
+                    format!("{}  {: <2}", unsafe_info, icon).as_str(),
+                );
+
+                // Here comes some special control characters to position the cursor
+                // properly for printing the last column containing the tree vines, after
+                // the emoji icon. This is a workaround for a potential bug where the
+                // radiation emoji will visually cover two characters in width but only
+                // count as a single character if using the column formatting provided by
+                // Rust. This could be unrelated to Rust and a quirk of this particular
+                // symbol or something in the Terminal app on macOS.
+                if emoji_symbols.will_output_emoji() {
+                    line.push_str("\r"); // Return the cursor to the start of the line.
+                    line.push_str(format!("\x1B[{}C", shift_chars).as_str()); // Move the cursor to the right so that it points to the icon character.
+                }
+
+                table_lines
+                    .push(format!("{} {}{}", line, tree_vines, package_name))
+            }
+            TextTreeLineCargoMetadata::ExtraDependenciesGroup { kind: dependency_kind, tree_vines } => {
+                let name = get_dependency_kind_group_name(dependency_kind);
                 if name.is_none() {
                     continue;
                 }

@@ -20,7 +20,7 @@ pub struct GeigerContext {
     pub package_id_to_metrics: HashMap<PackageId, PackageMetrics>,
 }
 
-pub struct _GeigerContextCargoMetadata {
+pub struct GeigerContextCargoMetadata {
     pub package_id_to_metrics:
         HashMap<cargo_metadata::PackageId, PackageMetrics>,
 }
@@ -81,13 +81,13 @@ where
     }
 }
 
-pub fn _find_unsafe_in_packages_cargo_metadata<F>(
+pub fn find_unsafe_in_packages_cargo_metadata<F>(
     packages: &Vec<cargo_metadata::Package>,
     allow_partial_results: bool,
     include_tests: IncludeTests,
     mode: ScanMode,
     mut progress_step: F,
-) -> _GeigerContextCargoMetadata
+) -> GeigerContextCargoMetadata
 where
     F: FnMut(usize, usize) -> CargoResult<()>,
 {
@@ -142,7 +142,7 @@ where
         let _ = progress_step(i, package_code_file_count);
     }
 
-    _GeigerContextCargoMetadata {
+    GeigerContextCargoMetadata {
         package_id_to_metrics,
     }
 }
@@ -231,9 +231,9 @@ fn find_rs_files_in_package_cargo_metadata(
 
     for (path_buf, targets) in canonical_targets.into_iter() {
         for target in targets {
-            // map string to TargetKind
-
-            into_rs_code_file_cargo_metadata(target.kind, path_buf.clone());
+            rs_files.push(
+                into_rs_code_file_cargo_metadata(target.kind, path_buf.clone())
+            );
         }
     }
 

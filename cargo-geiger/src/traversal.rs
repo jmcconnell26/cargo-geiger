@@ -1,12 +1,13 @@
 use crate::format::print::{Prefix, PrintConfig};
-use crate::format::tree::{get_tree_symbols, TextTreeLine};
-use crate::graph::{Graph, Node};
+use crate::format::tree::{get_tree_symbols, TextTreeLine, TextTreeLineCargoMetadata};
+use crate::graph::{Graph, GraphCargoMetadata, Node, NodeCargoMetadata};
 
 use cargo::core::dependency::DepKind;
 use cargo::core::PackageId;
 use petgraph::visit::EdgeRef;
 use petgraph::EdgeDirection;
 use std::collections::HashSet;
+use cargo_metadata::DependencyKind;
 
 /// To print the returned TextTreeLines in order are expected to produce a nice
 /// looking tree structure.
@@ -28,6 +29,24 @@ pub fn walk_dependency_tree(
         &mut visited_deps,
         &mut levels_continue,
         pc,
+    )
+}
+
+pub fn walk_dependency_tree_cargo_metadata(
+    root_package_id: cargo_metadata::PackageId,
+    graph: &GraphCargoMetadata,
+    print_config: &PrintConfig,
+) -> Vec<TextTreeLineCargoMetadata> {
+    let mut visited_dependencies = HashSet::new();
+    let mut levels_continue = vec![];
+    let node = &graph.graph[graph.nodes[&root_package_id]];
+
+    walk_dependency_node_cargo_metadata(
+        node,
+        graph,
+        &mut visited_dependencies,
+        &mut levels_continue,
+        print_config,
     )
 }
 
@@ -106,6 +125,52 @@ fn walk_dependency_kind(
     output
 }
 
+fn walk_dependency_kind_cargo_metadata(
+    kind: DependencyKind,
+    dependencies: &mut Vec<&NodeCargoMetadata>,
+    graph: &GraphCargoMetadata,
+    visited_dependencies: &mut HashSet<cargo_metadata::PackageId>,
+    levels_continue: &mut Vec<bool>,
+    print_config: &PrintConfig,
+) -> Vec<TextTreeLineCargoMetadata> {
+    if dependencies.is_empty() {
+        return Vec::new();
+    }
+    // Resolve uses Hash data types internally but we want consistent output ordering
+    dependencies.sort_by_key(|n| n.id.clone());
+
+    let tree_symbols = get_tree_symbols(print_config.charset);
+    let mut output = Vec::new();
+
+    if let Prefix::Indent = print_config.prefix {
+        match kind {
+            DependencyKind::Normal => (),
+            _ => {
+                let mut tree_vines = String::new();
+                for &continues in &**levels_continue {
+                    let c = if continues { tree_symbols.down } else { " " };
+                    tree_vines.push_str(&format!("{}   ", c));
+                }
+                output.push(TextTreeLineCargoMetadata::ExtraDependenciesGroup { kind, tree_vines });
+            }
+        }
+    }
+
+    let mut dependency_iterator = dependencies.iter().peekable();
+    while let Some(dependency) = dependency_iterator.next() {
+        levels_continue.push(dependency_iterator.peek().is_some());
+        output.append(&mut walk_dependency_node_cargo_metadata(
+            dependency,
+            graph,
+            visited_dependencies,
+            levels_continue,
+            print_config,
+        ));
+        levels_continue.pop();
+    }
+    output
+}
+
 fn walk_dependency_node(
     package: &Node,
     graph: &Graph,
@@ -136,6 +201,7 @@ fn walk_dependency_node(
             EdgeDirection::Incoming => &graph.graph[edge.source()],
             EdgeDirection::Outgoing => &graph.graph[edge.target()],
         };
+
         match *edge.weight() {
             DepKind::Normal => normal.push(dep),
             DepKind::Build => build.push(dep),
@@ -166,6 +232,79 @@ fn walk_dependency_node(
         levels_continue,
         print_config,
     );
+    all_out.append(&mut normal_out);
+    all_out.append(&mut build_out);
+    all_out.append(&mut dev_out);
+    all_out
+}
+
+fn walk_dependency_node_cargo_metadata(
+    package: &NodeCargoMetadata,
+    graph: &GraphCargoMetadata,
+    visited_dependencies: &mut HashSet<cargo_metadata::PackageId>,
+    levels_continue: &mut Vec<bool>,
+    print_config: &PrintConfig,
+) -> Vec<TextTreeLineCargoMetadata> {
+    let new = print_config.all || visited_dependencies.insert(package.id.clone());
+    let tree_vines = construct_tree_vines_string(levels_continue, print_config);
+
+    let mut all_out = vec![TextTreeLineCargoMetadata::Package {
+        id: package.id.clone(),
+        tree_vines
+    }];
+
+    if !new {
+        return all_out;
+    }
+
+    let mut normal = vec![];
+    let mut build = vec![];
+    let mut development = vec![];
+
+    for edge in graph
+        .graph
+        .edges_directed(graph.nodes[&package.id], print_config.direction)
+    {
+        let dependency = match print_config.direction {
+            EdgeDirection::Incoming => &graph.graph[edge.source()],
+            EdgeDirection::Outgoing => &graph.graph[edge.target()],
+        };
+
+        match *edge.weight() {
+            DependencyKind::Normal => normal.push(dependency),
+            DependencyKind::Build => build.push(dependency),
+            DependencyKind::Development => development.push(dependency),
+            _ => panic!("Unknown dependency kind")
+        }
+    }
+
+    let mut normal_out = walk_dependency_kind_cargo_metadata(
+        DependencyKind::Normal,
+        &mut normal,
+        graph,
+        visited_dependencies,
+        levels_continue,
+        print_config,
+    );
+
+    let mut build_out = walk_dependency_kind_cargo_metadata(
+        DependencyKind::Build,
+        &mut build,
+        graph,
+        visited_dependencies,
+        levels_continue,
+        print_config,
+    );
+
+    let mut dev_out = walk_dependency_kind_cargo_metadata(
+        DependencyKind::Development,
+        &mut development,
+        graph,
+        visited_dependencies,
+        levels_continue,
+        print_config,
+    );
+
     all_out.append(&mut normal_out);
     all_out.append(&mut build_out);
     all_out.append(&mut dev_out);
