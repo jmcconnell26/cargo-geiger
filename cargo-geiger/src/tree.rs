@@ -58,8 +58,8 @@ fn construct_tree_vines_string(
 
 pub fn get_tree_symbols(charset: Charset) -> TreeSymbols {
     match charset {
-        Charset::Utf8 => UTF8_TREE_SYMBOLS,
         Charset::Ascii => ASCII_TREE_SYMBOLS,
+        _ => UTF8_TREE_SYMBOLS,
     }
 }
 
@@ -112,8 +112,9 @@ mod tree_tests {
     #[rstest(
         input_charset,
         expected_tree_symbols,
-        case(Charset::Utf8, UTF8_TREE_SYMBOLS),
-        case(Charset::Ascii, ASCII_TREE_SYMBOLS)
+        case(Charset::Ascii, ASCII_TREE_SYMBOLS),
+        case(Charset::GitHubMarkdown, UTF8_TREE_SYMBOLS),
+        case(Charset::Utf8, UTF8_TREE_SYMBOLS)
     )]
     fn get_tree_symbols_test(
         input_charset: Charset,

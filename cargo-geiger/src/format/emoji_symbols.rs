@@ -1,11 +1,10 @@
-use crate::format::{Charset, SymbolKind};
-
-use colored::Colorize;
+use crate::format::print_config::colorize;
+use crate::format::{Charset, CrateDetectionStatus, SymbolKind};
 
 pub struct EmojiSymbols {
     charset: Charset,
     emojis: [&'static str; 3],
-    fallbacks: [colored::ColoredString; 3],
+    fallbacks: [String; 3],
 }
 
 impl EmojiSymbols {
@@ -17,11 +16,28 @@ impl EmojiSymbols {
             Box::new(self.fallbacks[idx].clone())
         }
     }
+
     pub fn new(charset: Charset) -> EmojiSymbols {
         Self {
             charset,
             emojis: ["🔒", "❓", "☢️"],
-            fallbacks: [":)".green(), "?".normal(), "!".red().bold()],
+            fallbacks: [
+                colorize(
+                    charset,
+                    &CrateDetectionStatus::NoneDetectedForbidsUnsafe,
+                    String::from(":)"),
+                ),
+                colorize(
+                    charset,
+                    &CrateDetectionStatus::NoneDetectedAllowsUnsafe,
+                    String::from("?"),
+                ),
+                colorize(
+                    charset,
+                    &CrateDetectionStatus::UnsafeDetected,
+                    String::from("!"),
+                ),
+            ],
         }
     }
 

@@ -4,6 +4,7 @@ use crate::format::{get_kind_group_name, CrateDetectionStatus, SymbolKind};
 use crate::mapping::CargoMetadataParameters;
 use crate::scan::unsafe_stats;
 
+use super::super::Charset;
 use super::total_package_counts::TotalPackageCounts;
 use super::TableParameters;
 use super::{table_row, table_row_empty};
@@ -34,6 +35,7 @@ pub fn handle_text_tree_line_extra_deps_group(
 
 pub fn handle_text_tree_line_package(
     cargo_metadata_parameters: &CargoMetadataParameters,
+    charset: Charset,
     emoji_symbols: &EmojiSymbols,
     handle_package_parameters: &mut HandlePackageParameters,
     package_id: PackageId,
@@ -91,6 +93,8 @@ pub fn handle_text_tree_line_package(
     };
 
     let package_name = colorize(
+        charset,
+        &crate_detection_status,
         format!(
             "{}",
             table_parameters
@@ -98,11 +102,11 @@ pub fn handle_text_tree_line_package(
                 .format
                 .display(cargo_metadata_parameters, &package_id)
         ),
-        &crate_detection_status,
     );
     let unsafe_info = colorize(
-        table_row(&unsafe_info.used, &unsafe_info.unused),
+        charset,
         &crate_detection_status,
+        table_row(&unsafe_info.used, &unsafe_info.unused),
     );
 
     let shift_chars = unsafe_info.chars().count() + 4;

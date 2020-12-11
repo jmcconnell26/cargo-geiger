@@ -2,7 +2,7 @@ use crate::format::emoji_symbols::EmojiSymbols;
 use crate::format::table::{
     create_table_from_text_tree_lines, TableParameters, UNSAFE_COUNTERS_HEADER,
 };
-use crate::format::SymbolKind;
+use crate::format::{Charset, SymbolKind};
 use crate::graph::Graph;
 use crate::mapping::CargoMetadataParameters;
 use crate::tree::traversal::walk_dependency_tree;
@@ -40,7 +40,10 @@ pub fn scan_to_table(
     }
 
     let emoji_symbols = EmojiSymbols::new(scan_parameters.print_config.charset);
-    let mut output_key_lines = construct_key_lines(&emoji_symbols);
+    let mut output_key_lines = construct_key_lines(
+        scan_parameters.print_config.charset,
+        &emoji_symbols,
+    );
     combined_scan_output_lines.append(&mut output_key_lines);
 
     let text_tree_lines = walk_dependency_tree(
@@ -59,6 +62,7 @@ pub fn scan_to_table(
         mut scan_output_lines,
         mut warning_count,
     } = create_table_from_text_tree_lines(
+        scan_parameters.print_config.charset,
         cargo_metadata_parameters,
         &table_parameters,
         text_tree_lines,
@@ -81,7 +85,10 @@ pub fn scan_to_table(
     })
 }
 
-fn construct_key_lines(emoji_symbols: &EmojiSymbols) -> Vec<String> {
+fn construct_key_lines(
+    charset: Charset,
+    emoji_symbols: &EmojiSymbols,
+) -> Vec<String> {
     let mut output_key_lines = Vec::<String>::new();
 
     output_key_lines.push(String::new());
@@ -122,15 +129,18 @@ fn construct_key_lines(emoji_symbols: &EmojiSymbols) -> Vec<String> {
     }
 
     output_key_lines.push(String::new());
-    output_key_lines.push(format!(
-        "{}",
-        UNSAFE_COUNTERS_HEADER
-            .iter()
-            .map(|s| s.to_owned())
-            .collect::<Vec<_>>()
-            .join(" ")
-            .bold()
-    ));
+
+    let key = UNSAFE_COUNTERS_HEADER
+        .iter()
+        .map(|s| s.to_owned())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    match charset {
+        Charset::GitHubMarkdown => output_key_lines.push(key),
+        _ => output_key_lines.push(key.bold().to_string()),
+    }
+
     output_key_lines.push(String::new());
 
     output_key_lines
