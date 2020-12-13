@@ -103,7 +103,7 @@ impl Args {
     pub fn parse_args(
         mut raw_args: Arguments,
     ) -> Result<Args, Box<dyn std::error::Error>> {
-        let args = Args {
+        let mut args = Args {
             all: raw_args.contains(["-a", "--all"]),
             charset: raw_args
                 .opt_value_from_str("--charset")?
@@ -164,6 +164,18 @@ impl Args {
                 None
             },
         };
+
+        if args.readme_args.update_readme
+            && args.charset != Charset::GitHubMarkdown
+        {
+            eprintln!(
+                "Charset has been specified as {:?}, but the `--update-readme` flag has also been provided. \
+                To ensure the report written to the README.md is correct, a reduced charset will be used.",
+                args.charset
+            );
+            args.charset = Charset::GitHubMarkdown
+        }
+
         Ok(args)
     }
 
@@ -283,6 +295,18 @@ pub mod args_tests {
             false,
             Charset::Utf8,
             2
+        ),
+        case(
+            vec![OsString::from("--update-readme")],
+            false,
+            Charset::GitHubMarkdown,
+            0
+        ),
+        case(
+            vec![OsString::from("--update-readme"), OsString::from("--charset"), OsString::from("ascii")],
+            false,
+            Charset::GitHubMarkdown,
+            0
         )
     )]
     fn parse_args_test(
