@@ -1,10 +1,12 @@
 use crate::format::print_config::colorize;
 use crate::format::{Charset, CrateDetectionStatus, SymbolKind};
 
+use colored::ColoredString;
+
 pub struct EmojiSymbols {
     charset: Charset,
     emojis: [&'static str; 3],
-    fallbacks: [String; 3],
+    fallbacks: [ColoredString; 3],
 }
 
 impl EmojiSymbols {

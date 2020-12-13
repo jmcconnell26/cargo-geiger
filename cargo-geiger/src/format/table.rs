@@ -15,6 +15,7 @@ use handle_text_tree_line::{
 use total_package_counts::TotalPackageCounts;
 
 use cargo_geiger_serde::{Count, CounterBlock};
+use colored::ColoredString;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -76,11 +77,14 @@ pub fn create_table_from_text_tree_lines(
     let total_detection_status =
         total_package_counts.get_total_detection_status();
 
-    table_lines.push(table_footer(
-        table_parameters.print_config.charset,
-        total_package_counts.total_counter_block,
-        total_package_counts.total_unused_counter_block,
-        total_detection_status,
+    table_lines.push(format!(
+        "{}",
+        table_footer(
+            table_parameters.print_config.charset,
+            total_package_counts.total_counter_block,
+            total_package_counts.total_unused_counter_block,
+            total_detection_status
+        )
     ));
 
     table_lines.push(String::new());
@@ -102,7 +106,7 @@ fn table_footer(
     used: CounterBlock,
     not_used: CounterBlock,
     status: CrateDetectionStatus,
-) -> String {
+) -> ColoredString {
     let fmt = |used: &Count, not_used: &Count| {
         format!("{}/{}", used.unsafe_, used.unsafe_ + not_used.unsafe_)
     };

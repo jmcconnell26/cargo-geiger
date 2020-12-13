@@ -4,7 +4,7 @@ use crate::format::{Charset, CrateDetectionStatus, FormatError};
 
 use cargo::core::shell::Verbosity;
 use cargo::util::errors::CliError;
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use geiger::IncludeTests;
 use petgraph::EdgeDirection;
 
@@ -98,19 +98,13 @@ pub fn colorize(
     charset: Charset,
     crate_detection_status: &CrateDetectionStatus,
     string: String,
-) -> String {
+) -> ColoredString {
     match charset {
-        Charset::GitHubMarkdown => string,
+        Charset::GitHubMarkdown => ColoredString::from(string.as_str()),
         _ => match crate_detection_status {
-            CrateDetectionStatus::NoneDetectedForbidsUnsafe => {
-                string.green().to_string()
-            }
-            CrateDetectionStatus::NoneDetectedAllowsUnsafe => {
-                string.normal().to_string()
-            }
-            CrateDetectionStatus::UnsafeDetected => {
-                string.red().bold().to_string()
-            }
+            CrateDetectionStatus::NoneDetectedForbidsUnsafe => string.green(),
+            CrateDetectionStatus::NoneDetectedAllowsUnsafe => string.normal(),
+            CrateDetectionStatus::UnsafeDetected => string.red().bold(),
         },
     }
 }
@@ -219,42 +213,42 @@ mod print_config_tests {
     #[rstest(
         input_charset,
         input_crate_detection_status,
-        expected_colorized_string,
+        expected_colored_string,
         case(
             Charset::Ascii,
             CrateDetectionStatus::NoneDetectedForbidsUnsafe,
-            String::from("string_value").green().to_string()
+            String::from("string_value").green()
         ),
         case(
             Charset::Utf8,
             CrateDetectionStatus::NoneDetectedAllowsUnsafe,
-            String::from("string_value").normal().to_string()
+            String::from("string_value").normal()
         ),
         case(
             Charset::Ascii,
             CrateDetectionStatus::UnsafeDetected,
-            String::from("string_value").red().bold().to_string()
+            String::from("string_value").red().bold()
         ),
         case(
             Charset::GitHubMarkdown,
             CrateDetectionStatus::NoneDetectedForbidsUnsafe,
-            String::from("string_value")
+            ColoredString::from("string_value")
         ),
         case(
             Charset::GitHubMarkdown,
             CrateDetectionStatus::NoneDetectedAllowsUnsafe,
-            String::from("string_value")
+            ColoredString::from("string_value")
         ),
         case(
             Charset::GitHubMarkdown,
             CrateDetectionStatus::UnsafeDetected,
-            String::from("string_value")
+            ColoredString::from("string_value")
         )
     )]
     fn colorize_test(
         input_charset: Charset,
         input_crate_detection_status: CrateDetectionStatus,
-        expected_colorized_string: String,
+        expected_colored_string: ColoredString,
     ) {
         let string_value = String::from("string_value");
 
@@ -264,7 +258,7 @@ mod print_config_tests {
                 &input_crate_detection_status,
                 string_value
             ),
-            expected_colorized_string
+            expected_colored_string
         );
     }
 }
