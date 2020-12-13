@@ -100,6 +100,7 @@ The changelog can be found [here](https://github.com/rust-secure-code/cargo-geig
 [changelog]: https://github.com/rust-secure-code/cargo-geiger/blob/master/CHANGELOG.md
 
 ## Cargo Geiger Safety Report
+```
 
 Metric output format: x/y
     x = unsafe code used by the build
@@ -400,3 +401,4 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 191/206    18950/21161  92/98  5/5     250/309
 
+```
