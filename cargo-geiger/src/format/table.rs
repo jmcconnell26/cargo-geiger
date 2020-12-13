@@ -31,7 +31,6 @@ pub const UNSAFE_COUNTERS_HEADER: [&str; 6] = [
 ];
 
 pub fn create_table_from_text_tree_lines(
-    charset: Charset,
     cargo_metadata_parameters: &CargoMetadataParameters,
     table_parameters: &TableParameters,
     text_tree_lines: Vec<TextTreeLine>,
@@ -63,7 +62,6 @@ pub fn create_table_from_text_tree_lines(
                 tree_vines,
             } => handle_text_tree_line_package(
                 cargo_metadata_parameters,
-                charset,
                 &emoji_symbols,
                 &mut handle_package_parameters,
                 package_id,
@@ -78,14 +76,11 @@ pub fn create_table_from_text_tree_lines(
     let total_detection_status =
         total_package_counts.get_total_detection_status();
 
-    table_lines.push(format!(
-        "{}",
-        table_footer(
-            charset,
-            total_package_counts.total_counter_block,
-            total_package_counts.total_unused_counter_block,
-            total_detection_status
-        )
+    table_lines.push(table_footer(
+        table_parameters.print_config.charset,
+        total_package_counts.total_counter_block,
+        total_package_counts.total_unused_counter_block,
+        total_detection_status,
     ));
 
     table_lines.push(String::new());

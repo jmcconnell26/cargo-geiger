@@ -62,7 +62,6 @@ pub fn scan_to_table(
         mut scan_output_lines,
         mut warning_count,
     } = create_table_from_text_tree_lines(
-        scan_parameters.print_config.charset,
         cargo_metadata_parameters,
         &table_parameters,
         text_tree_lines,
