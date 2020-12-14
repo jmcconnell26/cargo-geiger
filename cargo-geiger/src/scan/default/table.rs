@@ -1,8 +1,9 @@
 use crate::format::emoji_symbols::EmojiSymbols;
+use crate::format::print_config::OutputFormat;
 use crate::format::table::{
     create_table_from_text_tree_lines, TableParameters, UNSAFE_COUNTERS_HEADER,
 };
-use crate::format::{Charset, SymbolKind};
+use crate::format::SymbolKind;
 use crate::graph::Graph;
 use crate::mapping::CargoMetadataParameters;
 use crate::tree::traversal::walk_dependency_tree;
@@ -39,10 +40,11 @@ pub fn scan_to_table(
         combined_scan_output_lines.append(&mut rs_files_used_lines);
     }
 
-    let emoji_symbols = EmojiSymbols::new(scan_parameters.print_config.charset);
+    let emoji_symbols =
+        EmojiSymbols::new(scan_parameters.print_config.output_format);
     let mut output_key_lines = construct_key_lines(
-        scan_parameters.print_config.charset,
         &emoji_symbols,
+        scan_parameters.print_config.output_format,
     );
     combined_scan_output_lines.append(&mut output_key_lines);
 
@@ -85,8 +87,8 @@ pub fn scan_to_table(
 }
 
 fn construct_key_lines(
-    charset: Charset,
     emoji_symbols: &EmojiSymbols,
+    output_format: OutputFormat,
 ) -> Vec<String> {
     let mut output_key_lines = Vec::<String>::new();
 
@@ -135,8 +137,8 @@ fn construct_key_lines(
         .collect::<Vec<_>>()
         .join(" ");
 
-    match charset {
-        Charset::GitHubMarkdown => output_key_lines.push(key),
+    match output_format {
+        OutputFormat::GitHubMarkdown => output_key_lines.push(key),
         _ => output_key_lines.push(key.bold().to_string()),
     }
 

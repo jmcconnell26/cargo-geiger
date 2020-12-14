@@ -1,5 +1,4 @@
 use crate::format::print_config::OutputFormat;
-use crate::format::Charset;
 
 use cargo::core::shell::ColorChoice;
 use cargo::{CliResult, Config};
@@ -29,11 +28,10 @@ OPTIONS:
                                   than a tree), but prefixed with the depth.
     -a, --all                     Don't truncate dependencies that have already
                                   been displayed.
-        --charset <CHARSET>       Character set to use in output: utf8, ascii
-                                  [default: utf8].
     --format <FORMAT>             Format string used for printing dependencies
                                   [default: {p}].
-    --json                        Output in JSON format.
+    --output-format               Output format for the report: Ascii, GitHubMarkdown,
+                                  Json, Utf8 [default: Utf8]
     --update-readme               Writes output to ./README.md. Looks for a Safety
                                   Report section, replaces if found, adds if not.
                                   Throws an error if no README.md exists.
@@ -67,7 +65,6 @@ OPTIONS:
 #[derive(Default)]
 pub struct Args {
     pub all: bool,
-    pub charset: Charset,
     pub color: Option<String>,
     pub deps_args: DepsArgs,
     pub features_args: FeaturesArgs,
@@ -81,6 +78,7 @@ pub struct Args {
     pub manifest_path: Option<PathBuf>,
     pub no_indent: bool,
     pub offline: bool,
+    pub output_format: OutputFormat,
     pub package: Option<String>,
     pub prefix_depth: bool,
     pub quiet: bool,
@@ -89,7 +87,6 @@ pub struct Args {
     pub unstable_flags: Vec<String>,
     pub verbose: u32,
     pub version: bool,
-    pub output_format: Option<OutputFormat>,
 }
 
 impl Args {
@@ -105,9 +102,6 @@ impl Args {
     ) -> Result<Args, Box<dyn std::error::Error>> {
         let mut args = Args {
             all: raw_args.contains(["-a", "--all"]),
-            charset: raw_args
-                .opt_value_from_str("--charset")?
-                .unwrap_or(Charset::Utf8),
             color: raw_args.opt_value_from_str("--color")?,
             deps_args: DepsArgs {
                 all_deps: raw_args.contains("--all-dependencies"),
@@ -158,22 +152,20 @@ impl Args {
                 (true, _) => 2,
             },
             version: raw_args.contains(["-V", "--version"]),
-            output_format: if raw_args.contains("--json") {
-                Some(OutputFormat::Json)
-            } else {
-                None
-            },
+            output_format: raw_args
+                .opt_value_from_str("--output-format")?
+                .unwrap_or(OutputFormat::Utf8),
         };
 
         if args.readme_args.update_readme
-            && args.charset != Charset::GitHubMarkdown
+            && args.output_format != OutputFormat::GitHubMarkdown
         {
             eprintln!(
-                "Charset has been specified as {:?}, but the `--update-readme` flag has also been provided. \
+                "OutputFormat has been specified as {:?}, but the `--update-readme` flag has also been provided. \
                 To ensure the report written to the README.md is correct, a reduced charset will be used.",
-                args.charset
+                args.output_format
             );
-            args.charset = Charset::GitHubMarkdown
+            args.output_format = OutputFormat::GitHubMarkdown
         }
 
         Ok(args)
@@ -264,55 +256,55 @@ pub mod args_tests {
     #[rstest(
         input_argument_vector,
         expected_all,
-        expected_charset,
+        expected_output_format,
         expected_verbose,
         case(
             vec![],
             false,
-            Charset::Utf8,
+            OutputFormat::Utf8,
             0
         ),
         case(
             vec![OsString::from("--all")],
             true,
-            Charset::Utf8,
+            OutputFormat::Utf8,
             0,
         ),
         case(
-            vec![OsString::from("--charset"), OsString::from("ascii")],
+            vec![OsString::from("--output-format"), OsString::from("Ascii")],
             false,
-            Charset::Ascii,
+            OutputFormat::Ascii,
             0
         ),
         case(
             vec![OsString::from("-v")],
             false,
-            Charset::Utf8,
+            OutputFormat::Utf8,
             1
         ),
         case(
             vec![OsString::from("-vv")],
             false,
-            Charset::Utf8,
+            OutputFormat::Utf8,
             2
         ),
         case(
             vec![OsString::from("--update-readme")],
             false,
-            Charset::GitHubMarkdown,
+            OutputFormat::GitHubMarkdown,
             0
         ),
         case(
-            vec![OsString::from("--update-readme"), OsString::from("--charset"), OsString::from("ascii")],
+            vec![OsString::from("--update-readme"), OsString::from("--output-format"), OsString::from("Ascii")],
             false,
-            Charset::GitHubMarkdown,
+            OutputFormat::GitHubMarkdown,
             0
         )
     )]
     fn parse_args_test(
         input_argument_vector: Vec<OsString>,
         expected_all: bool,
-        expected_charset: Charset,
+        expected_output_format: OutputFormat,
         expected_verbose: u32,
     ) {
         let args_result =
@@ -323,7 +315,7 @@ pub mod args_tests {
         let args = args_result.unwrap();
 
         assert_eq!(args.all, expected_all);
-        assert_eq!(args.charset, expected_charset);
+        assert_eq!(args.output_format, expected_output_format);
         assert_eq!(args.verbose, expected_verbose)
     }
 

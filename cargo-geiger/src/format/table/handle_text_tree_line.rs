@@ -91,8 +91,8 @@ pub fn handle_text_tree_line_package(
     };
 
     let package_name = colorize(
-        table_parameters.print_config.charset,
         &crate_detection_status,
+        table_parameters.print_config.output_format,
         format!(
             "{}",
             table_parameters
@@ -102,8 +102,8 @@ pub fn handle_text_tree_line_package(
         ),
     );
     let unsafe_info = colorize(
-        table_parameters.print_config.charset,
         &crate_detection_status,
+        table_parameters.print_config.output_format,
         table_row(&unsafe_info.used, &unsafe_info.unused),
     );
 

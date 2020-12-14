@@ -1,12 +1,12 @@
-use crate::format::print_config::colorize;
-use crate::format::{Charset, CrateDetectionStatus, SymbolKind};
+use crate::format::print_config::{colorize, OutputFormat};
+use crate::format::{CrateDetectionStatus, SymbolKind};
 
 use colored::ColoredString;
 
 pub struct EmojiSymbols {
-    charset: Charset,
     emojis: [&'static str; 3],
     fallbacks: [ColoredString; 3],
+    output_format: OutputFormat,
 }
 
 impl EmojiSymbols {
@@ -19,32 +19,32 @@ impl EmojiSymbols {
         }
     }
 
-    pub fn new(charset: Charset) -> EmojiSymbols {
+    pub fn new(output_format: OutputFormat) -> EmojiSymbols {
         Self {
-            charset,
             emojis: ["🔒", "❓", "☢️"],
             fallbacks: [
                 colorize(
-                    charset,
                     &CrateDetectionStatus::NoneDetectedForbidsUnsafe,
+                    output_format,
                     String::from(":)"),
                 ),
                 colorize(
-                    charset,
                     &CrateDetectionStatus::NoneDetectedAllowsUnsafe,
+                    output_format,
                     String::from("?"),
                 ),
                 colorize(
-                    charset,
                     &CrateDetectionStatus::UnsafeDetected,
+                    output_format,
                     String::from("!"),
                 ),
             ],
+            output_format,
         }
     }
 
     pub fn will_output_emoji(&self) -> bool {
-        self.charset == Charset::Utf8
+        self.output_format == OutputFormat::Utf8
             && console::Term::stdout().features().wants_emoji()
     }
 }

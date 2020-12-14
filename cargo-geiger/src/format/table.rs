@@ -2,8 +2,8 @@ mod handle_text_tree_line;
 mod total_package_counts;
 
 use crate::format::emoji_symbols::EmojiSymbols;
-use crate::format::print_config::{colorize, PrintConfig};
-use crate::format::{Charset, CrateDetectionStatus};
+use crate::format::print_config::{colorize, OutputFormat, PrintConfig};
+use crate::format::CrateDetectionStatus;
 use crate::mapping::CargoMetadataParameters;
 use crate::scan::{GeigerContext, ScanResult};
 use crate::tree::TextTreeLine;
@@ -41,7 +41,7 @@ pub fn create_table_from_text_tree_lines(
     let mut warning_count = 0;
     let mut visited_package_ids = HashSet::new();
     let emoji_symbols =
-        EmojiSymbols::new(table_parameters.print_config.charset);
+        EmojiSymbols::new(table_parameters.print_config.output_format);
     let mut handle_package_parameters = HandlePackageParameters {
         total_package_counts: &mut total_package_counts,
         visited_package_ids: &mut visited_package_ids,
@@ -80,9 +80,9 @@ pub fn create_table_from_text_tree_lines(
     table_lines.push(format!(
         "{}",
         table_footer(
-            table_parameters.print_config.charset,
             total_package_counts.total_counter_block,
             total_package_counts.total_unused_counter_block,
+            table_parameters.print_config.output_format,
             total_detection_status
         )
     ));
@@ -102,9 +102,9 @@ pub struct TableParameters<'a> {
 }
 
 fn table_footer(
-    charset: Charset,
     used: CounterBlock,
     not_used: CounterBlock,
+    output_format: OutputFormat,
     status: CrateDetectionStatus,
 ) -> ColoredString {
     let fmt = |used: &Count, not_used: &Count| {
@@ -118,7 +118,7 @@ fn table_footer(
         fmt(&used.item_traits, &not_used.item_traits),
         fmt(&used.methods, &not_used.methods),
     );
-    colorize(charset, &status, output)
+    colorize(&status, output_format, output)
 }
 
 fn table_row(used: &CounterBlock, not_used: &CounterBlock) -> String {
@@ -161,38 +161,41 @@ mod table_tests {
     use strum::IntoEnumIterator;
 
     #[rstest(
-        input_charset,
+        input_output_format,
         expected_line,
         case(
-            Charset::Ascii,
+            OutputFormat::Ascii,
             String::from("2/4        4/8          6/12   8/16    10/20  ")
         ),
         case(
-            Charset::GitHubMarkdown,
+            OutputFormat::GitHubMarkdown,
             String::from("2/4        4/8          6/12   8/16    10/20  ")
         ),
         case(
-            Charset::Utf8,
+            OutputFormat::Utf8,
             String::from("2/4        4/8          6/12   8/16    10/20  ")
         )
     )]
-    fn table_footer_test(input_charset: Charset, expected_line: String) {
+    fn table_footer_test(
+        input_output_format: OutputFormat,
+        expected_line: String,
+    ) {
         let used_counter_block = create_counter_block();
         let not_used_counter_block = create_counter_block();
 
         for crate_detection_status in CrateDetectionStatus::iter() {
             let table_footer = table_footer(
-                input_charset,
                 used_counter_block.clone(),
                 not_used_counter_block.clone(),
+                input_output_format,
                 crate_detection_status.clone(),
             );
 
             assert_eq!(
                 table_footer,
                 colorize(
-                    input_charset,
                     &crate_detection_status,
+                    input_output_format,
                     expected_line.clone()
                 )
             );
