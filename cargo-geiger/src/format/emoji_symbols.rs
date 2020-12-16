@@ -44,7 +44,8 @@ impl EmojiSymbols {
     }
 
     pub fn will_output_emoji(&self) -> bool {
-        self.output_format == OutputFormat::Utf8
-            && console::Term::stdout().features().wants_emoji()
+        (self.output_format == OutputFormat::Utf8
+            && console::Term::stdout().features().wants_emoji())
+            || self.output_format == OutputFormat::GitHubMarkdown
     }
 }
