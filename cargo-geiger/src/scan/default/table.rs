@@ -105,12 +105,15 @@ fn construct_key_lines(
     let unknown = "No `unsafe` usage found, missing #![forbid(unsafe_code)]";
     let guilty = "`unsafe` usage found";
 
-    let shift_sequence = if emoji_symbols.will_output_emoji() {
-        "\r\x1B[7C" // The radiation icon's Unicode width is 2,
-                    // but by most terminals it seems to be rendered at width 1.
-    } else {
-        ""
-    };
+    let shift_sequence =
+        match (output_format, emoji_symbols.will_output_emoji()) {
+            (OutputFormat::GitHubMarkdown, true) => " ",
+            (_, true) => {
+                "\r\x1B[7C" // The radiation icon's Unicode width is 2,
+                            // but by most terminals it seems to be rendered at width 1.
+            }
+            _ => "",
+        };
 
     let symbol_kinds_to_string_values = vec![
         (SymbolKind::Lock, "", forbids),
