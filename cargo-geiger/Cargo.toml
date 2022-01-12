@@ -37,7 +37,7 @@ url = "2.2.1"
 vendored-openssl = ["cargo/vendored-openssl"]
 
 [dev-dependencies]
-assert_cmd = "1.0.3"
+assert_cmd = "2.0.3"
 better-panic = "0.2.0"
 fs_extra = "1.2.0"
 insta = "1.7.1"
