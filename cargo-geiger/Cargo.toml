@@ -14,25 +14,26 @@ version = "0.11.2"
 maintenance = { status = "experimental" }
 
 [dependencies]
-anyhow = "1.0.52"
-cargo = "0.59.0"
+anyhow = "1.0.56"
+cargo = "0.60.0"
 cargo-geiger-serde = { path = "../cargo-geiger-serde", version = "0.2.1" }
-cargo_metadata = "0.14.1"
+cargo_metadata = "0.14.2"
 cargo-platform = "0.1.2"
 colored = "2.0.0"
 console = "0.15.0"
 geiger = { path = "../geiger", version = "0.4.8" }
-krates = "0.9.0"
+krates = "0.10.1"
 petgraph = "0.6.0"
 pico-args = "0.4.2"
-regex = "1.5.4"
+rayon = "1.5.1"
+regex = "1.5.5"
 serde = { version = "1.0.132", features = ["derive"] }
-serde_json = "1.0.75"
-strum = "0.23.0"
-strum_macros = "0.23.1"
+serde_json = "1.0.79"
+strum = "0.24.0"
+strum_macros = "0.24.0"
 walkdir = "2.3.2"
 url = "2.2.1"
-cargo-util = "0.1.1"
+cargo-util = "0.1.2"
 
 [features]
 vendored-openssl = ["cargo/vendored-openssl"]
@@ -41,9 +42,9 @@ vendored-openssl = ["cargo/vendored-openssl"]
 assert_cmd = "2.0.4"
 better-panic = "0.3.0"
 fs_extra = "1.2.0"
-insta = "1.10.0"
-rand = "0.8.4"
-regex = "1.5.4"
+insta = "1.13.0"
+rand = "0.8.5"
+regex = "1.5.5"
 rstest = "0.12.0"
-semver = "1.0.4"
+semver = "1.0.7"
 tempfile = "3.3.0"
