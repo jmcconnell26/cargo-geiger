@@ -11,5 +11,5 @@ version = "0.2.1"
 
 [dependencies]
 semver = { version = "1.0.9", features = ["serde"] }
-serde = { version = "1.0.132", features = ["derive"] }
+serde = { version = "1.0.137", features = ["derive"] }
 url = { version = "2.2.2", features = ["serde"] }
